@@ -79,6 +79,9 @@ async function loadCrons() {
   } catch(e) { box.innerHTML = `<div style="padding:12px;color:var(--accent);font-size:12px">Error: ${esc(e.message)}</div>`; }
 }
 
+let _cronSelectedSkills=[];
+let _cronSkillsCache=null;
+
 function toggleCronForm(){
   const form=$('cronCreateForm');
   if(!form)return;
@@ -90,9 +93,64 @@ function toggleCronForm(){
     $('cronFormPrompt').value='';
     $('cronFormDeliver').value='local';
     $('cronFormError').style.display='none';
+    _cronSelectedSkills=[];
+    _renderCronSkillTags();
+    const search=$('cronFormSkillSearch');
+    if(search)search.value='';
+    // Pre-fetch skills for the picker
+    if(!_cronSkillsCache){
+      api('/api/skills').then(d=>{_cronSkillsCache=d.skills||[];}).catch(()=>{});
+    }
     $('cronFormName').focus();
   }
 }
+
+function _renderCronSkillTags(){
+  const wrap=$('cronFormSkillTags');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  for(const name of _cronSelectedSkills){
+    const tag=document.createElement('span');
+    tag.className='skill-tag';
+    tag.innerHTML=esc(name)+'<span class="remove-tag" onclick="this.parentElement.remove();_cronSelectedSkills=_cronSelectedSkills.filter(s=>s!==\''+esc(name)+'\')">×</span>';
+    wrap.appendChild(tag);
+  }
+}
+
+// Skill search input handler
+(function(){
+  const setup=()=>{
+    const search=$('cronFormSkillSearch');
+    const dropdown=$('cronFormSkillDropdown');
+    if(!search||!dropdown)return;
+    search.oninput=()=>{
+      const q=search.value.trim().toLowerCase();
+      if(!q||!_cronSkillsCache){dropdown.style.display='none';return;}
+      const matches=_cronSkillsCache.filter(s=>
+        !_cronSelectedSkills.includes(s.name)&&
+        (s.name.toLowerCase().includes(q)||(s.category||'').toLowerCase().includes(q))
+      ).slice(0,8);
+      if(!matches.length){dropdown.style.display='none';return;}
+      dropdown.innerHTML='';
+      for(const s of matches){
+        const opt=document.createElement('div');
+        opt.className='skill-opt';
+        opt.textContent=s.name+(s.category?' ('+s.category+')':'');
+        opt.onclick=()=>{
+          _cronSelectedSkills.push(s.name);
+          _renderCronSkillTags();
+          search.value='';
+          dropdown.style.display='none';
+        };
+        dropdown.appendChild(opt);
+      }
+      dropdown.style.display='';
+    };
+    search.onblur=()=>setTimeout(()=>{dropdown.style.display='none';},150);
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);
+  else setTimeout(setup,0);
+})();
 
 async function submitCronCreate(){
   const name=$('cronFormName').value.trim();
@@ -104,7 +162,10 @@ async function submitCronCreate(){
   if(!schedule){errEl.textContent='Schedule is required (e.g. "0 9 * * *" or "every 1h")';errEl.style.display='';return;}
   if(!prompt){errEl.textContent='Prompt is required';errEl.style.display='';return;}
   try{
-    await api('/api/crons/create',{method:'POST',body:JSON.stringify({name:name||undefined,schedule,prompt,deliver})});
+    const body={schedule,prompt,deliver};
+    if(name)body.name=name;
+    if(_cronSelectedSkills.length)body.skills=_cronSelectedSkills;
+    await api('/api/crons/create',{method:'POST',body:JSON.stringify(body)});
     toggleCronForm();
     showToast('Job created ✓');
     await loadCrons();
@@ -344,10 +405,43 @@ async function openSkill(name, el) {
     $('previewBadge').textContent = 'skill';
     $('previewBadge').className = 'preview-badge md';
     showPreview('md');
-    $('previewMd').innerHTML = renderMd(data.content || '(no content)');
+    let html = renderMd(data.content || '(no content)');
+    // Render linked files section if present
+    const lf = data.linked_files || {};
+    const categories = Object.entries(lf).filter(([,files]) => files && files.length > 0);
+    if (categories.length) {
+      html += '<div class="skill-linked-files"><div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Linked Files</div>';
+      for (const [cat, files] of categories) {
+        html += `<div class="skill-linked-section"><h4>${esc(cat)}</h4>`;
+        for (const f of files) {
+          html += `<a class="skill-linked-file" onclick="openSkillFile('${esc(name)}','${esc(f)}');return false" href="#">${esc(f)}</a>`;
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    $('previewMd').innerHTML = html;
     $('previewArea').classList.add('visible');
     $('fileTree').style.display = 'none';
   } catch(e) { setStatus('Could not load skill: ' + e.message); }
+}
+
+async function openSkillFile(skillName, filePath) {
+  try {
+    const data = await api(`/api/skills/content?name=${encodeURIComponent(skillName)}&file=${encodeURIComponent(filePath)}`);
+    $('previewPathText').textContent = skillName + ' / ' + filePath;
+    $('previewBadge').textContent = filePath.split('.').pop() || 'file';
+    $('previewBadge').className = 'preview-badge code';
+    const ext = filePath.split('.').pop() || '';
+    if (['md','markdown'].includes(ext)) {
+      showPreview('md');
+      $('previewMd').innerHTML = renderMd(data.content || '');
+    } else {
+      showPreview('code');
+      $('previewCode').textContent = data.content || '';
+      requestAnimationFrame(() => highlightCode());
+    }
+  } catch(e) { setStatus('Could not load file: ' + e.message); }
 }
 
 // ── Skill create/edit form ──

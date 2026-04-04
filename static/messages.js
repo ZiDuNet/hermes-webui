@@ -146,6 +146,7 @@ async function send(){
       }
       if(S.session&&S.session.session_id===activeSid){
         S.session=d.session;S.messages=d.session.messages||[];
+        if(d.usage) S.lastUsage=d.usage;
         if(d.session.tool_calls&&d.session.tool_calls.length){
           S.toolCalls=d.session.tool_calls.map(tc=>({...tc,done:true}));
         } else {

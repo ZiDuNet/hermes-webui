@@ -171,11 +171,20 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             )
             s.messages = result.get('messages') or s.messages
             s.title = title_from(s.messages, s.title)
+            # Read token/cost usage from the agent object (if available)
+            input_tokens = getattr(agent, 'session_prompt_tokens', 0) or 0
+            output_tokens = getattr(agent, 'session_completion_tokens', 0) or 0
+            estimated_cost = getattr(agent, 'session_estimated_cost_usd', None)
+            s.input_tokens = (s.input_tokens or 0) + input_tokens
+            s.output_tokens = (s.output_tokens or 0) + output_tokens
+            if estimated_cost:
+                s.estimated_cost = (s.estimated_cost or 0) + estimated_cost
             # Extract tool call metadata grouped by assistant message index
             # Each tool call gets assistant_msg_idx so the client can render
             # cards inline with the assistant bubble that triggered them.
             tool_calls = []
             pending_names = {}   # tool_call_id -> name
+            pending_args = {}    # tool_call_id -> args dict
             pending_asst_idx = {} # tool_call_id -> index in s.messages
             for msg_idx, m in enumerate(s.messages):
                 if m.get('role') == 'assistant':
@@ -184,22 +193,31 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                         for p in c:
                             if isinstance(p, dict) and p.get('type') == 'tool_use':
                                 tid = p.get('id', '')
-                                pending_names[tid] = p.get('name', 'tool')
+                                pending_names[tid] = p.get('name', '')
+                                pending_args[tid] = p.get('input', {})
                                 pending_asst_idx[tid] = msg_idx
                 elif m.get('role') == 'tool':
                     tid = m.get('tool_call_id') or m.get('tool_use_id', '')
-                    name = pending_names.get(tid, 'tool')
+                    name = pending_names.get(tid, '')
+                    if not name or name == 'tool':
+                        continue  # skip unresolvable tool entries
                     asst_idx = pending_asst_idx.get(tid, -1)
+                    args = pending_args.get(tid, {})
                     raw = str(m.get('content', ''))
                     try:
-                        import json as _j2
-                        rd = _j2.loads(raw)
+                        rd = json.loads(raw)
                         snippet = str(rd.get('output') or rd.get('result') or rd.get('error') or raw)[:200]
                     except Exception:
                         snippet = raw[:200]
+                    # Truncate args values for storage
+                    args_snap = {}
+                    if isinstance(args, dict):
+                        for k, v in list(args.items())[:6]:
+                            s2 = str(v)
+                            args_snap[k] = s2[:120] + ('...' if len(s2) > 120 else '')
                     tool_calls.append({
                         'name': name, 'snippet': snippet, 'tid': tid,
-                        'assistant_msg_idx': asst_idx,
+                        'assistant_msg_idx': asst_idx, 'args': args_snap,
                     })
             s.tool_calls = tool_calls
             # Tag the matching user message with attachment filenames for display on reload
@@ -215,7 +233,8 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                             m['attachments'] = attachments
                             break
             s.save()
-            put('done', {'session': s.compact() | {'messages': s.messages, 'tool_calls': tool_calls}})
+            usage = {'input_tokens': input_tokens, 'output_tokens': output_tokens, 'estimated_cost': estimated_cost}
+            put('done', {'session': s.compact() | {'messages': s.messages, 'tool_calls': tool_calls}, 'usage': usage})
           finally:
             if old_cwd is None: os.environ.pop('TERMINAL_CWD', None)
             else: os.environ['TERMINAL_CWD'] = old_cwd

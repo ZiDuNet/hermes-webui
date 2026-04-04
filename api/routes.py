@@ -223,11 +223,26 @@ def handle_get(handler, parsed):
         return j(handler, {'skills': data.get('skills', [])})
 
     if parsed.path == '/api/skills/content':
-        from tools.skills_tool import skill_view as _skill_view
-        name = parse_qs(parsed.query).get('name', [''])[0]
+        from tools.skills_tool import skill_view as _skill_view, SKILLS_DIR
+        qs = parse_qs(parsed.query)
+        name = qs.get('name', [''])[0]
         if not name: return j(handler, {'error': 'name required'}, status=400)
+        file_path = qs.get('file', [''])[0]
+        if file_path:
+            # Serve a linked file from the skill directory
+            skill_dir = None
+            for p in SKILLS_DIR.rglob(name):
+                if p.is_dir(): skill_dir = p; break
+            if not skill_dir: return bad(handler, 'Skill not found', 404)
+            target = (skill_dir / file_path).resolve()
+            try: target.relative_to(skill_dir.resolve())
+            except ValueError: return bad(handler, 'Invalid file path', 400)
+            if not target.exists() or not target.is_file():
+                return bad(handler, 'File not found', 404)
+            return j(handler, {'content': target.read_text(encoding='utf-8'), 'path': file_path})
         raw = _skill_view(name)
         data = json.loads(raw) if isinstance(raw, str) else raw
+        if 'linked_files' not in data: data['linked_files'] = {}
         return j(handler, data)
 
     # ── Memory API (GET) ──

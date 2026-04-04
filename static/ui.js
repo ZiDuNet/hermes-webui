@@ -82,6 +82,8 @@ let _scrollPinned=true;
     _scrollPinned=nearBottom;
   });
 })();
+function _fmtTokens(n){if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'k';return String(n);}
+
 function scrollIfPinned(){
   if(!_scrollPinned) return;
   const el=$('messages');
@@ -486,6 +488,21 @@ function renderMessages(){
       else inner.appendChild(frag);
     }
   }
+  // Render per-turn usage badge on the last assistant message (if usage data exists)
+  if(S.session&&(S.session.input_tokens||S.session.output_tokens)){
+    const lastAssist=inner.querySelector('.msg-row:last-child');
+    if(lastAssist&&!lastAssist.querySelector('.msg-usage')){
+      const usage=document.createElement('div');
+      usage.className='msg-usage';
+      const inTok=S.session.input_tokens||0;
+      const outTok=S.session.output_tokens||0;
+      const cost=S.session.estimated_cost;
+      let text=`${_fmtTokens(inTok)} in · ${_fmtTokens(outTok)} out`;
+      if(cost) text+=` · ~$${cost<0.01?cost.toFixed(4):cost.toFixed(2)}`;
+      usage.textContent=text;
+      lastAssist.appendChild(usage);
+    }
+  }
   scrollToBottom();
   // Apply syntax highlighting after DOM is built
   requestAnimationFrame(()=>{highlightCode();addCopyButtons();renderMermaidBlocks();});
@@ -499,7 +516,8 @@ function toolIcon(name){
   const icons={terminal:'⬛',read_file:'📄',write_file:'✏️',search_files:'🔍',
     web_search:'🌐',web_extract:'🌐',execute_code:'⚙️',patch:'🔧',
     memory:'🧠',skill_manage:'📚',todo:'✅',cronjob:'⏱️',delegate_task:'🤖',
-    send_message:'💬',browser_navigate:'🌐',vision_analyze:'👁️'};
+    send_message:'💬',browser_navigate:'🌐',vision_analyze:'👁️',
+    subagent_progress:'🔀'};
   return icons[name]||'🔧';
 }
 
@@ -520,13 +538,22 @@ function buildToolCard(tc){
   }
   const hasMore=tc.snippet&&tc.snippet.length>displaySnippet.length;
   const runIndicator=tc.done===false?'<span class="tool-card-running-dot"></span>':'';
+  const isSubagent=tc.name==='subagent_progress';
+  const isDelegation=tc.name==='delegate_task';
+  const cardClass='tool-card'+(tc.done===false?' tool-card-running':'')+(isSubagent?' tool-card-subagent':'');
+  // Clean up subagent preview: strip leading 🔀 emoji since the icon already shows it
+  let displayName=tc.name;
+  if(isSubagent) displayName='Subagent';
+  if(isDelegation) displayName='Delegate task';
+  let previewText=tc.preview||displaySnippet||'';
+  if(isSubagent) previewText=previewText.replace(/^🔀\s*/,'');
   row.innerHTML=`
-    <div class="tool-card${tc.done===false?' tool-card-running':''}">
+    <div class="${cardClass}">
       <div class="tool-card-header" onclick="this.closest('.tool-card').classList.toggle('open')">
         ${runIndicator}
         <span class="tool-card-icon">${icon}</span>
-        <span class="tool-card-name">${esc(tc.name)}</span>
-        <span class="tool-card-preview">${esc(tc.preview||displaySnippet||'')}</span>
+        <span class="tool-card-name">${esc(displayName)}</span>
+        <span class="tool-card-preview">${esc(previewText)}</span>
         ${hasDetail?'<span class="tool-card-toggle">▸</span>':''}
       </div>
       ${hasDetail?`<div class="tool-card-detail">

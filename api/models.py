@@ -34,17 +34,65 @@ def _write_session_index():
 
 
 class Session:
-    def __init__(self, session_id=None, title='Untitled', workspace=str(DEFAULT_WORKSPACE), model=DEFAULT_MODEL, messages=None, created_at=None, updated_at=None, tool_calls=None, pinned=False, archived=False, project_id=None, profile=None, **kwargs):
-        self.session_id = session_id or uuid.uuid4().hex[:12]; self.title = title; self.workspace = str(Path(workspace).expanduser().resolve()); self.model = model; self.messages = messages or []; self.tool_calls = tool_calls or []; self.created_at = created_at or time.time(); self.updated_at = updated_at or time.time(); self.pinned = bool(pinned); self.archived = bool(archived); self.project_id = project_id or None; self.profile = profile
+    def __init__(self, session_id=None, title='Untitled',
+                 workspace=str(DEFAULT_WORKSPACE), model=DEFAULT_MODEL,
+                 messages=None, created_at=None, updated_at=None,
+                 tool_calls=None, pinned=False, archived=False,
+                 project_id=None, profile=None,
+                 input_tokens=0, output_tokens=0, estimated_cost=None,
+                 **kwargs):
+        self.session_id = session_id or uuid.uuid4().hex[:12]
+        self.title = title
+        self.workspace = str(Path(workspace).expanduser().resolve())
+        self.model = model
+        self.messages = messages or []
+        self.tool_calls = tool_calls or []
+        self.created_at = created_at or time.time()
+        self.updated_at = updated_at or time.time()
+        self.pinned = bool(pinned)
+        self.archived = bool(archived)
+        self.project_id = project_id or None
+        self.profile = profile
+        self.input_tokens = input_tokens or 0
+        self.output_tokens = output_tokens or 0
+        self.estimated_cost = estimated_cost
+
     @property
-    def path(self): return SESSION_DIR / f'{self.session_id}.json'
-    def save(self): self.updated_at = time.time(); self.path.write_text(json.dumps(self.__dict__, ensure_ascii=False, indent=2), encoding='utf-8'); _write_session_index()
+    def path(self):
+        return SESSION_DIR / f'{self.session_id}.json'
+
+    def save(self):
+        self.updated_at = time.time()
+        self.path.write_text(
+            json.dumps(self.__dict__, ensure_ascii=False, indent=2),
+            encoding='utf-8',
+        )
+        _write_session_index()
+
     @classmethod
     def load(cls, sid):
         p = SESSION_DIR / f'{sid}.json'
-        if not p.exists(): return None
+        if not p.exists():
+            return None
         return cls(**json.loads(p.read_text(encoding='utf-8')))
-    def compact(self): return {'session_id': self.session_id, 'title': self.title, 'workspace': self.workspace, 'model': self.model, 'message_count': len(self.messages), 'created_at': self.created_at, 'updated_at': self.updated_at, 'pinned': self.pinned, 'archived': self.archived, 'project_id': self.project_id, 'profile': self.profile}
+
+    def compact(self):
+        return {
+            'session_id': self.session_id,
+            'title': self.title,
+            'workspace': self.workspace,
+            'model': self.model,
+            'message_count': len(self.messages),
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+            'pinned': self.pinned,
+            'archived': self.archived,
+            'project_id': self.project_id,
+            'profile': self.profile,
+            'input_tokens': self.input_tokens,
+            'output_tokens': self.output_tokens,
+            'estimated_cost': self.estimated_cost,
+        }
 
 def get_session(sid):
     with LOCK:

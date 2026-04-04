@@ -45,11 +45,16 @@
         <input id="cronFormName" placeholder="Job name (optional)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
         <input id="cronFormSchedule" placeholder="Schedule: '0 9 * * *' or 'every 1h'" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
         <textarea id="cronFormPrompt" rows="3" placeholder="Prompt (must be self-contained)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:none;font-family:inherit;margin-bottom:6px"></textarea>
-        <select id="cronFormDeliver" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:8px">
+        <select id="cronFormDeliver" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
           <option value="local">Local (save output only)</option>
           <option value="discord">Discord</option>
           <option value="telegram">Telegram</option>
         </select>
+        <div class="skill-picker-wrap" style="margin-bottom:8px">
+          <input id="cronFormSkillSearch" placeholder="Add skills (optional)..." style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none" autocomplete="off">
+          <div id="cronFormSkillDropdown" class="skill-picker-dropdown" style="display:none"></div>
+          <div id="cronFormSkillTags" class="skill-picker-tags"></div>
+        </div>
         <div style="display:flex;gap:6px">
           <button class="cron-btn run" style="flex:1" onclick="submitCronCreate()">Create job</button>
           <button class="cron-btn" style="flex:1" onclick="toggleCronForm()">Cancel</button>

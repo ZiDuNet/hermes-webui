@@ -562,6 +562,26 @@ body.resizing{user-select:none;cursor:col-resize;}
 /* Show more button inside tool card result */
 .tool-card-more{background:none;border:none;color:var(--blue);font-size:10px;cursor:pointer;padding:3px 0 0;opacity:.7;display:block;}
 .tool-card-more:hover{opacity:1;}
+/* Subagent cards: indented with accent border */
+.tool-card-subagent{border-left:2px solid rgba(124,185,255,.3);margin-left:8px;}
+/* Token usage badge below assistant messages */
+.msg-usage{font-size:11px;color:var(--muted);opacity:.6;margin-top:2px;padding-left:42px;}
+.msg-usage:hover{opacity:1;}
+/* Skill picker (cron create form) */
+.skill-picker-wrap{position:relative;}
+.skill-picker-dropdown{position:absolute;left:0;right:0;top:100%;background:var(--sidebar);border:1px solid var(--border2);border-radius:6px;z-index:10;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.3);}
+.skill-opt{padding:6px 10px;cursor:pointer;font-size:12px;color:var(--muted);transition:background .1s;}
+.skill-opt:hover{background:rgba(255,255,255,.08);color:var(--text);}
+.skill-picker-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.skill-tag{background:rgba(124,185,255,.12);border:1px solid rgba(124,185,255,.25);border-radius:12px;padding:2px 8px;font-size:11px;color:var(--blue);display:flex;align-items:center;gap:4px;}
+.remove-tag{cursor:pointer;opacity:.6;font-size:13px;line-height:1;}
+.remove-tag:hover{opacity:1;color:var(--accent);}
+/* Skill linked files section */
+.skill-linked-files{margin-top:16px;border-top:1px solid var(--border);padding-top:12px;}
+.skill-linked-section{margin-bottom:8px;}
+.skill-linked-section h4{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;}
+.skill-linked-file{display:block;font-size:12px;padding:3px 6px;border-radius:4px;cursor:pointer;color:var(--blue);text-decoration:none;}
+.skill-linked-file:hover{background:rgba(255,255,255,.06);}
 .tool-card-row{margin:0;padding:1px 0;}
 .tool-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:6px;margin:2px 0 2px 40px;overflow:hidden;transition:border-color .15s;}
 .tool-card:hover{border-color:rgba(255,255,255,.12);}
