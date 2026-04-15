@@ -595,7 +595,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     if m.get('role') == 'user':
                         content = str(m.get('content', ''))
                         # Match if content is part of the sent message or vice-versa
-                        base_text = msg_text.split('\n\n[Attached files:')[0].strip()
+                        base_text = msg_text.split('\n\n[Attached files:')[0].strip() if '\n\n[Attached files:' in msg_text else msg_text
                         if base_text[:60] in content or content[:60] in msg_text:
                             m['attachments'] = attachments
                             break
