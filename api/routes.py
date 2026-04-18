@@ -763,6 +763,12 @@ def handle_get(handler, parsed) -> bool:
             {"name": get_active_profile_name(), "path": str(get_active_hermes_home())},
         )
 
+    # ── Management routes (Config/Keys/MCP) ──────────────────────────────
+    from api.mgmt_routes import handle_mgmt_get
+    mgmt_result = handle_mgmt_get(handler, parsed)
+    if mgmt_result is not False:
+        return mgmt_result
+
     return False  # 404
 
 
@@ -1373,6 +1379,12 @@ def handle_post(handler, parsed) -> bool:
         handler.end_headers()
         handler.wfile.write(json.dumps({"ok": True}).encode())
         return True
+
+    # ── Management routes (Config/Keys/MCP) ──────────────────────────────
+    from api.mgmt_routes import handle_mgmt_post
+    mgmt_result = handle_mgmt_post(handler, parsed)
+    if mgmt_result is not False:
+        return mgmt_result
 
     return False  # 404
 

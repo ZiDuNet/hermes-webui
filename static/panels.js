@@ -16,6 +16,9 @@ async function switchPanel(name) {
   if (name === 'workspaces') await loadWorkspacesPanel();
   if (name === 'profiles') await loadProfilesPanel();
   if (name === 'todos') loadTodos();
+  if (name === 'config' && window.initConfigPanel) window.initConfigPanel();
+  if (name === 'keys' && window.initKeysPanel) window.initKeysPanel();
+  if (name === 'mcp' && window.initMcpPanel) window.initMcpPanel();
 }
 
 // ── Cron panel ──
