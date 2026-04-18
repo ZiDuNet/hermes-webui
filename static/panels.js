@@ -19,6 +19,9 @@ async function switchPanel(name) {
   if (name === 'config' && window.initConfigPanel) window.initConfigPanel();
   if (name === 'keys' && window.initKeysPanel) window.initKeysPanel();
   if (name === 'mcp' && window.initMcpPanel) window.initMcpPanel();
+  if (name === 'gateway' && window.initGatewayPanel) window.initGatewayPanel();
+  if (name === 'logs' && window.initLogsPanel) window.initLogsPanel();
+  if (name === 'usage' && window.initUsagePanel) window.initUsagePanel();
 }
 
 // ── Cron panel ──

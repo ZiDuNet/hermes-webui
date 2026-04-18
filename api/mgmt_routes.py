@@ -318,6 +318,126 @@ def handle_mgmt_get(handler, parsed) -> bool:
         servers = config.get("mcp_servers", {})
         return j(handler, {"servers": servers})
 
+    # ── Gateway status ────────────────────────────────────────────────────
+    if parsed.path == "/api/mgmt/gateway/status":
+        try:
+            import subprocess
+            # Check PID file
+            from api.config import HOME
+            hermes_home = Path(os.getenv("HERMES_HOME", str(HOME / ".hermes")))
+            pid_file = hermes_home / "gateway.pid"
+            health_url = "http://127.0.0.1:8642"
+            pid = None
+            running = False
+            if pid_file.exists():
+                try:
+                    pid = int(pid_file.read_text().strip())
+                    # Check if process is alive
+                    import signal
+                    try:
+                        os.kill(pid, 0)
+                        running = True
+                    except (ProcessLookupError, PermissionError):
+                        running = False
+                        pid = None
+                except (ValueError, OSError):
+                    pid = None
+            # Try health endpoint
+            if running:
+                try:
+                    import urllib.request
+                    resp = urllib.request.urlopen(f"{health_url}/health", timeout=2)
+                    health_data = json.loads(resp.read())
+                    return j(handler, {"running": True, "pid": pid, "health": health_data, "url": health_url})
+                except Exception:
+                    return j(handler, {"running": True, "pid": pid, "url": health_url})
+            return j(handler, {"running": False, "pid": None, "url": health_url})
+        except Exception as e:
+            return j(handler, {"running": False, "error": str(e)})
+
+    # ── Logs ──────────────────────────────────────────────────────────────
+    if parsed.path == "/api/mgmt/logs":
+        from urllib.parse import parse_qs
+        qs = parse_qs(parsed.query)
+        log_name = qs.get("file", ["agent"])[0]
+        lines = int(qs.get("lines", ["200"])[0])
+        level = qs.get("level", [""])[0].upper()
+        search = qs.get("search", [""])[0]
+        try:
+            from api.config import HOME
+            hermes_home = Path(os.getenv("HERMES_HOME", str(HOME / ".hermes")))
+            log_file = hermes_home / "logs" / f"{log_name}.log"
+            if not log_file.exists():
+                return j(handler, {"lines": [], "file": log_name})
+            with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+                all_lines = f.readlines()
+            # Filter
+            result = []
+            for line in all_lines:
+                if level and level not in line.upper():
+                    continue
+                if search and search.lower() not in line.lower():
+                    continue
+                result.append(line.rstrip("\n"))
+            # Take last N lines
+            result = result[-lines:]
+            return j(handler, {"lines": result, "file": log_name, "total": len(all_lines)})
+        except Exception as e:
+            return j(handler, {"error": str(e)}, status=500)
+
+    # ── Usage / Analytics ─────────────────────────────────────────────────
+    if parsed.path == "/api/mgmt/usage":
+        from urllib.parse import parse_qs
+        qs = parse_qs(parsed.query)
+        days = int(qs.get("days", ["30"])[0])
+        try:
+            import sqlite3
+            from api.config import HOME
+            db_path = Path(os.getenv("HERMES_HOME", str(HOME / ".hermes"))) / "state.db"
+            if not db_path.exists():
+                return j(handler, {"daily": [], "by_model": [], "totals": {}})
+            with sqlite3.connect(str(db_path)) as conn:
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cutoff = time.time() - (days * 86400)
+                # Daily stats
+                cur.execute("""
+                    SELECT DATE(started_at, 'unixepoch') as day,
+                           COUNT(*) as sessions,
+                           SUM(COALESCE(input_tokens, 0)) as input_tokens,
+                           SUM(COALESCE(output_tokens, 0)) as output_tokens,
+                           SUM(COALESCE(estimated_cost, 0)) as estimated_cost
+                    FROM sessions
+                    WHERE started_at >= ?
+                    GROUP BY day ORDER BY day
+                """, (cutoff,))
+                daily = [dict(row) for row in cur.fetchall()]
+                # By model
+                cur.execute("""
+                    SELECT model,
+                           COUNT(*) as sessions,
+                           SUM(COALESCE(input_tokens, 0)) as input_tokens,
+                           SUM(COALESCE(output_tokens, 0)) as output_tokens,
+                           SUM(COALESCE(estimated_cost, 0)) as estimated_cost
+                    FROM sessions
+                    WHERE started_at >= ?
+                    GROUP BY model ORDER BY estimated_cost DESC
+                """, (cutoff,))
+                by_model = [dict(row) for row in cur.fetchall()]
+                # Totals
+                cur.execute("""
+                    SELECT COUNT(*) as total_sessions,
+                           SUM(COALESCE(input_tokens, 0)) as total_input,
+                           SUM(COALESCE(output_tokens, 0)) as total_output,
+                           SUM(COALESCE(estimated_cost, 0)) as total_cost
+                    FROM sessions WHERE started_at >= ?
+                """, (cutoff,))
+                row = cur.fetchone()
+                totals = dict(row) if row else {}
+            return j(handler, {"daily": daily, "by_model": by_model, "totals": totals, "period_days": days})
+        except Exception as e:
+            return j(handler, {"error": str(e)}, status=500)
+
     return False
 
 
@@ -477,4 +597,35 @@ def handle_mgmt_post(handler, parsed) -> bool:
         except Exception as e:
             return j(handler, {"error": str(e)}, status=500)
 
+    # ── Gateway start/stop/restart ────────────────────────────────────────
+    if parsed.path == "/api/mgmt/gateway/start":
+        return _gateway_command(handler, "start")
+
+    if parsed.path == "/api/mgmt/gateway/stop":
+        return _gateway_command(handler, "stop")
+
+    if parsed.path == "/api/mgmt/gateway/restart":
+        return _gateway_command(handler, "restart")
+
     return False
+
+
+def _gateway_command(handler, action):
+    """Execute hermes gateway start/stop/restart."""
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["hermes", "gateway", action],
+            capture_output=True, text=True, timeout=30,
+        )
+        output = (result.stdout or "").strip()
+        error = (result.stderr or "").strip()
+        if result.returncode != 0 and not output:
+            return j(handler, {"ok": False, "error": error or f"Exit code {result.returncode}"}, status=500)
+        return j(handler, {"ok": True, "output": output, "error": error})
+    except FileNotFoundError:
+        return j(handler, {"error": "hermes CLI not found on PATH"}, status=500)
+    except subprocess.TimeoutExpired:
+        return j(handler, {"error": "Command timed out"}, status=500)
+    except Exception as e:
+        return j(handler, {"error": str(e)}, status=500)

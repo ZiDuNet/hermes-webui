@@ -34,6 +34,9 @@
       <button class="nav-tab" data-panel="config" data-label="Config" onclick="switchPanel('config')" title="Configuration" data-i18n-title="Config"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button class="nav-tab" data-panel="keys" data-label="Keys" onclick="switchPanel('keys')" title="API Keys" data-i18n-title="Keys"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></button>
       <button class="nav-tab" data-panel="mcp" data-label="MCP" onclick="switchPanel('mcp')" title="MCP Servers" data-i18n-title="MCP Servers"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg></button>
+      <button class="nav-tab" data-panel="gateway" data-label="Gateway" onclick="switchPanel('gateway')" title="Gateway" data-i18n-title="Gateway"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20"/><path d="M17 2v20"/><path d="M2 12h20"/><path d="M2 7h5"/><path d="M2 17h5"/><path d="M17 17h5"/><path d="M17 7h5"/></svg></button>
+      <button class="nav-tab" data-panel="logs" data-label="Logs" onclick="switchPanel('logs')" title="Logs" data-i18n-title="Logs"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
+      <button class="nav-tab" data-panel="usage" data-label="Usage" onclick="switchPanel('usage')" title="Usage" data-i18n-title="Usage"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></button>
     </div>
     <!-- Chat panel -->
     <div class="panel-view active" id="panelChat">
@@ -178,6 +181,44 @@
         </div>
       </div>
       <div id="mcpServerList" style="flex:1;overflow-y:auto;padding:4px 12px"><div style="color:var(--muted);font-size:12px">Loading...</div></div>
+    </div>
+    <!-- Gateway panel -->
+    <div class="panel-view" id="panelGateway">
+      <div style="padding:8px 12px 4px;font-size:11px;color:var(--muted);flex-shrink:0">Gateway Status</div>
+      <div id="gatewayPanel" style="flex:1;overflow-y:auto;padding:8px 12px"><div style="color:var(--muted);font-size:12px">Loading...</div></div>
+    </div>
+    <!-- Logs panel -->
+    <div class="panel-view" id="panelLogs">
+      <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <select onchange="window._logsSetFile(this.value)" style="background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:3px 6px;font-size:10px;outline:none">
+          <option value="agent">agent.log</option>
+          <option value="gateway">gateway.log</option>
+        </select>
+        <select onchange="window._logsSetLevel(this.value)" style="background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:3px 6px;font-size:10px;outline:none">
+          <option value="">All levels</option>
+          <option value="ERROR">ERROR</option>
+          <option value="WARNING">WARNING</option>
+          <option value="INFO">INFO</option>
+          <option value="DEBUG">DEBUG</option>
+        </select>
+        <button class="cron-btn" style="padding:3px 6px;font-size:10px" onclick="window._logsRefresh()">Refresh</button>
+        <label style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted);cursor:pointer"><input type="checkbox" onchange="window._logsAutoRefresh(this.checked)" style="accent-color:var(--accent)"> Auto</label>
+        <span id="logsCount" style="font-size:10px;color:var(--muted)"></span>
+      </div>
+      <input placeholder="Search logs..." style="width:calc(100% - 24px);margin:4px 12px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;box-sizing:border-box" oninput="window._logsSearch(this.value)">
+      <div id="logsContent" style="flex:1;overflow-y:auto;padding:4px 12px;font-family:'SF Mono',ui-monospace,monospace;font-size:10px;line-height:1.6"><div style="color:var(--muted);font-size:12px">Loading...</div></div>
+    </div>
+    <!-- Usage panel -->
+    <div class="panel-view" id="panelUsage">
+      <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <div style="font-size:11px;color:var(--muted)">Usage Analytics</div>
+        <div style="display:flex;gap:4px">
+          <button class="cron-btn" style="padding:3px 8px;font-size:10px" onclick="window._usagePeriod(7)">7d</button>
+          <button class="cron-btn" style="padding:3px 8px;font-size:10px" onclick="window._usagePeriod(30)">30d</button>
+          <button class="cron-btn" style="padding:3px 8px;font-size:10px" onclick="window._usagePeriod(90)">90d</button>
+        </div>
+      </div>
+      <div id="usagePanel" style="flex:1;overflow-y:auto;padding:8px 12px"><div style="color:var(--muted);font-size:12px">Loading...</div></div>
     </div>
     <!-- Workspaces panel -->
     <div class="panel-view" id="panelWorkspaces">
@@ -705,6 +746,9 @@
 <script src="static/config-panel.js"></script>
 <script src="static/keys-panel.js"></script>
 <script src="static/mcp-panel.js"></script>
+<script src="static/gateway-panel.js"></script>
+<script src="static/logs-panel.js"></script>
+<script src="static/usage-panel.js"></script>
 <script src="static/onboarding.js"></script>
 <script src="static/boot.js"></script>
 </body>
