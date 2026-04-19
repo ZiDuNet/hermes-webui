@@ -305,6 +305,15 @@ _LOGIN_LOCALE = {
         "invalid_pw": "\u5bc6\u78bc\u932f\u8aa4",
         "conn_failed": "\u9023\u63a5\u5931\u6557",
     },
+    "ru": {
+        "lang": "ru-RU",
+        "title": "\u0412\u043e\u0439\u0442\u0438",
+        "subtitle": "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c, \u0447\u0442\u043e\u0431\u044b \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c",
+        "placeholder": "\u041f\u0430\u0440\u043e\u043b\u044c",
+        "btn": "\u0412\u043e\u0439\u0442\u0438",
+        "invalid_pw": "\u041d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c",
+        "conn_failed": "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f",
+    },
 }
 
 
@@ -2885,9 +2894,17 @@ def _handle_session_import_cli(handler, body):
 
     sid = str(body["session_id"])
 
-    # Check if already imported — idempotent
+    # Check if already imported — refresh messages from CLI store if new ones arrived
     existing = Session.load(sid)
     if existing:
+        fresh_msgs = get_cli_session_messages(sid)
+        if fresh_msgs and len(fresh_msgs) > len(existing.messages):
+            # Prefix-equality guard: only extend if existing messages are a prefix of
+            # the fresh CLI messages. Prevents silently dropping WebUI-added messages
+            # on hybrid sessions (user sent messages via WebUI while CLI continued).
+            if existing.messages == fresh_msgs[:len(existing.messages)]:
+                existing.messages = fresh_msgs
+                existing.save(touch_updated_at=False)
         return j(
             handler,
             {
