@@ -41,39 +41,19 @@ def _agent_dir() -> Path | None:
             return p.resolve()
     return None
 
-def _resolve_agent_python(agent_dir: Path) -> str:
-    """Return the Python executable to use for the agent.
-
-    Prefers the agent's own venv if it exists, otherwise falls back to
-    ``sys.executable`` (the web-ui process Python).
-    """
-    # Common venv layouts
-    for candidate in [
-        agent_dir / 'venv' / 'bin' / 'python',
-        agent_dir / '.venv' / 'bin' / 'python',
-        agent_dir / 'venv' / 'Scripts' / 'python.exe',   # Windows
-        agent_dir / '.venv' / 'Scripts' / 'python.exe',   # Windows
-    ]:
-        if candidate.exists():
-            return str(candidate)
-    return sys.executable
-
-
 def auto_install_agent_deps() -> bool:
     agent_dir = _agent_dir()
     if agent_dir is None:
         print('[!!] Auto-install skipped: agent directory not found.', flush=True)
         return False
 
-    agent_python = _resolve_agent_python(agent_dir)
-
     req_file = agent_dir / 'requirements.txt'
     pyproject = agent_dir / 'pyproject.toml'
     if req_file.exists():
-        install_args = [agent_python, '-m', 'pip', 'install', '--quiet', '-r', str(req_file)]
+        install_args = [sys.executable, '-m', 'pip', 'install', '--quiet', '-r', str(req_file)]
         print(f'     Installing from {req_file} ...', flush=True)
     elif pyproject.exists():
-        install_args = [agent_python, '-m', 'pip', 'install', '--quiet', str(agent_dir)]
+        install_args = [sys.executable, '-m', 'pip', 'install', '--quiet', str(agent_dir)]
         print(f'     Installing from {agent_dir} (pyproject.toml) ...', flush=True)
     else:
         print('[!!] Auto-install skipped: no requirements.txt or pyproject.toml in agent dir.', flush=True)

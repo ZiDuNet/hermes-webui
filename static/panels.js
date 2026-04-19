@@ -16,6 +16,8 @@ async function switchPanel(name) {
   document.querySelectorAll('.panel-view').forEach(p => p.classList.remove('active'));
   const panelEl = $('panel' + name.charAt(0).toUpperCase() + name.slice(1));
   if (panelEl) panelEl.classList.add('active');
+  // Toggle management panel mode: hide main chat, show panel overlaying main area
+  document.body.classList.toggle('mgmt-active', name !== 'chat');
   // Lazy-load panel data
   if (name === 'tasks') await loadCrons();
   if (name === 'skills') await loadSkills();

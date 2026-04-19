@@ -365,6 +365,14 @@
   /* Panel content areas (swapped by tab) */
   .panel-view{display:none;flex:1;overflow:hidden;flex-direction:column;}
   .panel-view.active{display:flex;}
+  /* ── Management panels overlay the main content area ── */
+  #panelChat{display:flex !important;flex:1;min-height:0;}
+  aside.sidebar>.panel-view:not(#panelChat){
+    position:fixed;left:240px;top:0;right:0;bottom:0;z-index:50;
+    background:var(--bg);flex:none;overflow-y:auto;
+    border-left:1px solid var(--border);padding:0;
+  }
+  body.mgmt-active .main{visibility:hidden;pointer-events:none;}
   /* Cron panel */
   .cron-list{flex:1;overflow-y:auto;padding:8px;}
   .cron-item{border-radius:10px;border:1px solid var(--border);margin-bottom:6px;overflow:hidden;transition:border-color .15s,background .15s;background:rgba(255,255,255,.02);}
@@ -674,6 +682,7 @@
   }
 
   @media(max-width:640px){
+    aside.sidebar>.panel-view:not(#panelChat){left:0;z-index:250;}
     /* ── Sidebar: slide-in overlay instead of hidden ── */
     .sidebar{position:fixed;left:-240px;top:0;bottom:0;width:240px;z-index:200;
       transition:left .25s ease;box-shadow:4px 0 24px rgba(0,0,0,.4);}
