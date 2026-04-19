@@ -45,6 +45,25 @@
 - 每日趋势图（最近 14 天柱状图）
 - 时间范围选择（7d/30d/90d）
 
+### 渠道管理 (`channels-panel.js`)
+- 8 平台支持：Telegram、Discord、Slack、WhatsApp、Matrix、飞书、钉钉、企微
+- 卡片式展示，显示配置状态
+- 每平台独立配置表单（Token/Secret/Channel 等）
+- 凭据保存到 .env，配置保存到 config.yaml
+
+### OAuth / API Key 管理 (`oauth-panel.js`)
+- 7 Provider：Anthropic、OpenAI、Google、Groq、Mistral、DeepSeek、OpenRouter
+- 显示设置状态（已设置/未设置）
+- 设置/显示/删除 API Key
+- 通过 env reveal 获取真实值（限速保护）
+
+### Terminal 终端 (`terminal-panel.js`)
+- HTTP polling 模式命令执行
+- 命令输入 + 回车执行
+- 安全过滤（阻止危险命令）
+- 30 秒超时保护
+- 输出高亮（命令/错误/信息）
+
 ## 后端 API
 
 所有新增 API 在 `api/mgmt_routes.py`，路径前缀 `/api/mgmt/`：
@@ -71,6 +90,12 @@
 | `/api/mgmt/gateway/restart` | POST | 重启 |
 | `/api/mgmt/logs` | GET | 日志读取 |
 | `/api/mgmt/usage` | GET | 用量统计 |
+| `/api/mgmt/channels` | GET | 渠道列表（8 平台） |
+| `/api/mgmt/channels` | POST | 保存渠道配置+凭据 |
+| `/api/mgmt/oauth/providers` | GET | OAuth Provider 列表 |
+| `/api/mgmt/oauth/set-key` | POST | 设置 API Key |
+| `/api/mgmt/oauth/remove-key` | POST | 删除 API Key |
+| `/api/mgmt/terminal/exec` | POST | 执行终端命令 |
 
 **关键优势**：直接 `from hermes_cli.config import DEFAULT_CONFIG, load_config, save_config` 等，不需要 Gateway API，不需要内联数据文件。
 
@@ -89,6 +114,9 @@ hermes-web-unified/
 │   ├── gateway-panel.js    # 新增：Gateway 面板
 │   ├── logs-panel.js       # 新增：Logs 面板
 │   ├── usage-panel.js      # 新增：Usage 面板
+│   ├── channels-panel.js   # 新增：Channels 渠道管理面板
+│   ├── oauth-panel.js      # 新增：OAuth/API Key 管理面板
+│   ├── terminal-panel.js   # 新增：Terminal 终端面板
 │   ├── index.html          # 修改：添加面板 HTML
 │   ├── panels.js           # 修改：switchPanel 懒加载
 │   ├── style.css           # 修改：添加面板样式

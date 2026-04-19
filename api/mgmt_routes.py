@@ -5,6 +5,7 @@ Directly imports from hermes_cli.config — no Gateway HTTP API needed.
 
 import json
 import logging
+import os
 import shutil
 import threading
 import time
@@ -322,17 +323,20 @@ def handle_mgmt_get(handler, parsed) -> bool:
     if parsed.path == "/api/mgmt/gateway/status":
         try:
             import subprocess
-            # Check PID file
             from api.config import HOME
             hermes_home = Path(os.getenv("HERMES_HOME", str(HOME / ".hermes")))
             pid_file = hermes_home / "gateway.pid"
+            state_file = hermes_home / "gateway_state.json"
             health_url = "http://127.0.0.1:8642"
             pid = None
             running = False
+            platforms = {}
+            gateway_state = None
+
+            # Check PID file
             if pid_file.exists():
                 try:
                     pid = int(pid_file.read_text().strip())
-                    # Check if process is alive
                     import signal
                     try:
                         os.kill(pid, 0)
@@ -342,16 +346,61 @@ def handle_mgmt_get(handler, parsed) -> bool:
                         pid = None
                 except (ValueError, OSError):
                     pid = None
-            # Try health endpoint
-            if running:
+
+            # Read gateway_state.json for platform statuses
+            if state_file.exists():
+                try:
+                    state_data = json.loads(state_file.read_text(encoding="utf-8"))
+                    platforms = state_data.get("platforms", {})
+                    gateway_state = state_data.get("gateway_state")
+                except Exception:
+                    pass
+
+            # If no platforms from state file, try health endpoint
+            if not platforms and running:
                 try:
                     import urllib.request
                     resp = urllib.request.urlopen(f"{health_url}/health", timeout=2)
                     health_data = json.loads(resp.read())
-                    return j(handler, {"running": True, "pid": pid, "health": health_data, "url": health_url})
+                    platforms = health_data.get("platforms", {})
+                    gateway_state = health_data.get("gateway_state", gateway_state)
                 except Exception:
-                    return j(handler, {"running": True, "pid": pid, "url": health_url})
-            return j(handler, {"running": False, "pid": None, "url": health_url})
+                    pass
+
+            # If still no platforms but config has them, show as "not connected"
+            if not platforms:
+                try:
+                    cli = _cli_module()
+                    config = cli["load_config"]()
+                    env_values = cli["load_env"]()
+                    platform_map = {
+                        "telegram": "TELEGRAM_BOT_TOKEN",
+                        "discord": "DISCORD_BOT_TOKEN",
+                        "slack": "SLACK_BOT_TOKEN",
+                        "whatsapp": "WHATSAPP_ENABLED",
+                        "matrix": "MATRIX_ACCESS_TOKEN",
+                        "feishu": "FEISHU_APP_ID",
+                        "dingtalk": "DINGTALK_CLIENT_ID",
+                        "wecom": "WECOM_BOT_ID",
+                    }
+                    for p_name, env_key in platform_map.items():
+                        has_cred = bool(env_values.get(env_key))
+                        has_cfg = bool(config.get(p_name))
+                        if has_cred or has_cfg:
+                            platforms[p_name] = {
+                                "state": "not_connected",
+                                "configured": True,
+                            }
+                except Exception:
+                    pass
+
+            return j(handler, {
+                "running": running,
+                "pid": pid,
+                "url": health_url,
+                "gateway_state": gateway_state,
+                "platforms": platforms,
+            })
         except Exception as e:
             return j(handler, {"running": False, "error": str(e)})
 
@@ -438,12 +487,97 @@ def handle_mgmt_get(handler, parsed) -> bool:
         except Exception as e:
             return j(handler, {"error": str(e)}, status=500)
 
+    # ── Channels ──────────────────────────────────────────────────────────
+    if parsed.path == "/api/mgmt/channels":
+        try:
+            cli = _cli_module()
+            config = cli["load_config"]()
+            env_values = cli["load_env"]()
+            platforms = ["telegram", "discord", "slack", "whatsapp", "matrix", "feishu", "dingtalk", "wecom"]
+            result = {}
+            for p in platforms:
+                cfg = config.get(p, {})
+                # Check if credentials exist
+                token_map = {
+                    "telegram": "TELEGRAM_BOT_TOKEN",
+                    "discord": "DISCORD_BOT_TOKEN",
+                    "slack": "SLACK_BOT_TOKEN",
+                    "whatsapp": "WHATSAPP_ENABLED",
+                    "matrix": "MATRIX_ACCESS_TOKEN",
+                    "feishu": "FEISHU_APP_ID",
+                    "dingtalk": "DINGTALK_CLIENT_ID",
+                    "wecom": "WECOM_BOT_ID",
+                }
+                env_key = token_map.get(p, "")
+                has_cred = bool(env_values.get(env_key))
+                result[p] = {
+                    "config": cfg,
+                    "configured": has_cred or bool(cfg),
+                    "has_credentials": has_cred,
+                }
+            return j(handler, result)
+        except Exception as e:
+            return j(handler, {"error": str(e)}, status=500)
+
+    # ── OAuth Providers ───────────────────────────────────────────────────
+    if parsed.path == "/api/mgmt/oauth/providers":
+        try:
+            import subprocess
+            providers = [
+                {"id": "anthropic", "name": "Anthropic (Claude API)", "flow": "pkce", "env_key": "ANTHROPIC_API_KEY"},
+                {"id": "openai", "name": "OpenAI", "flow": "api_key", "env_key": "OPENAI_API_KEY"},
+                {"id": "google", "name": "Google (Gemini)", "flow": "api_key", "env_key": "GOOGLE_API_KEY"},
+                {"id": "groq", "name": "Groq", "flow": "api_key", "env_key": "GROQ_API_KEY"},
+                {"id": "mistral", "name": "Mistral", "flow": "api_key", "env_key": "MISTRAL_API_KEY"},
+                {"id": "deepseek", "name": "DeepSeek", "flow": "api_key", "env_key": "DEEPSEEK_API_KEY"},
+                {"id": "openrouter", "name": "OpenRouter", "flow": "api_key", "env_key": "OPENROUTER_API_KEY"},
+            ]
+            cli = _cli_module()
+            env_values = cli["load_env"]()
+            for p in providers:
+                key = p["env_key"]
+                val = env_values.get(key, "")
+                p["status"] = {
+                    "logged_in": bool(val),
+                    "source": "env_var" if val else "",
+                    "has_key": bool(val),
+                }
+            return j(handler, {"providers": providers})
+        except Exception as e:
+            return j(handler, {"error": str(e)}, status=500)
+
     return False
 
 
-def handle_mgmt_post(handler, parsed) -> bool:
+def handle_mgmt_post(handler, parsed, body: dict = None) -> bool:
     """Handle management POST/PUT/DELETE routes. Returns True if matched."""
-    body = read_body(handler)
+    if body is None:
+        body = read_body(handler)
+
+    # ── Terminal exec ────────────────────────────────────────────────────
+    if parsed.path == "/api/mgmt/terminal/exec":
+        if not body or "command" not in body:
+            return j(handler, {"error": "Missing command"}, status=400)
+        cmd = body["command"].strip()
+        try:
+            # Security: block dangerous commands
+            blocked = ["rm -rf /", "del /s /q C:", "format", ":(){ :|:& };:", "mkfs"]
+            if any(b in cmd.lower() for b in blocked):
+                return j(handler, {"error": "Command blocked for safety", "exit_code": -1}, status=403)
+            import subprocess
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=30,
+                shell=True, cwd=str(Path.home()),
+            )
+            return j(handler, {
+                "stdout": result.stdout or "",
+                "stderr": result.stderr or "",
+                "exit_code": result.returncode,
+            })
+        except subprocess.TimeoutExpired:
+            return j(handler, {"error": "Command timed out (30s)", "exit_code": -1}, status=408)
+        except Exception as e:
+            return j(handler, {"error": str(e)}, status=500)
 
     # ── Config save ──────────────────────────────────────────────────────
     if parsed.path == "/api/mgmt/config":
@@ -452,7 +586,12 @@ def handle_mgmt_post(handler, parsed) -> bool:
         try:
             cli = _cli_module()
             disk_config = cli["load_config"]()
-            denorm = _denormalize_config_from_web(body["config"], disk_config)
+            web_config = body["config"]
+            # Merge: only update top-level keys that exist in web_config
+            merged = dict(disk_config)
+            for k, v in web_config.items():
+                merged[k] = v
+            denorm = _denormalize_config_from_web(merged, disk_config)
             # Backup
             config_path = cli["get_config_path"]()
             if config_path.exists():
@@ -594,6 +733,78 @@ def handle_mgmt_post(handler, parsed) -> bool:
                 shutil.copy2(config_path, str(config_path) + ".bak")
             cli["save_config"](config)
             return j(handler, {"ok": True})
+        except Exception as e:
+            return j(handler, {"error": str(e)}, status=500)
+
+    # ── Channels save ────────────────────────────────────────────────────
+    if parsed.path == "/api/mgmt/channels":
+        if not body or "platform" not in body:
+            return j(handler, {"error": "Missing platform"}, status=400)
+        try:
+            cli = _cli_module()
+            config = cli["load_config"]()
+            platform = body["platform"]
+            valid_platforms = ["telegram", "discord", "slack", "whatsapp", "matrix", "feishu", "dingtalk", "wecom"]
+            if platform not in valid_platforms:
+                return j(handler, {"error": f"Unknown platform: {platform}"}, status=400)
+            # Save platform config section
+            if "config" in body:
+                config[platform] = body["config"]
+                config_path = cli["get_config_path"]()
+                if config_path.exists():
+                    shutil.copy2(config_path, str(config_path) + ".bak")
+                cli["save_config"](config)
+            # Save credentials to .env
+            if "credentials" in body:
+                for k, v in body["credentials"].items():
+                    if v:  # Only set non-empty values
+                        cli["save_env_value"](k, v)
+            return j(handler, {"ok": True})
+        except Exception as e:
+            return j(handler, {"error": str(e)}, status=500)
+
+    # ── OAuth set key ────────────────────────────────────────────────────
+    if parsed.path == "/api/mgmt/oauth/set-key":
+        if not body or "provider" not in body or "api_key" not in body:
+            return j(handler, {"error": "Missing provider or api_key"}, status=400)
+        try:
+            provider_key_map = {
+                "anthropic": "ANTHROPIC_API_KEY",
+                "openai": "OPENAI_API_KEY",
+                "google": "GOOGLE_API_KEY",
+                "groq": "GROQ_API_KEY",
+                "mistral": "MISTRAL_API_KEY",
+                "deepseek": "DEEPSEEK_API_KEY",
+                "openrouter": "OPENROUTER_API_KEY",
+            }
+            env_key = provider_key_map.get(body["provider"])
+            if not env_key:
+                return j(handler, {"error": f"Unknown provider: {body['provider']}"}, status=400)
+            cli = _cli_module()
+            cli["save_env_value"](env_key, body["api_key"])
+            return j(handler, {"ok": True})
+        except Exception as e:
+            return j(handler, {"error": str(e)}, status=500)
+
+    if parsed.path == "/api/mgmt/oauth/remove-key":
+        if not body or "provider" not in body:
+            return j(handler, {"error": "Missing provider"}, status=400)
+        try:
+            provider_key_map = {
+                "anthropic": "ANTHROPIC_API_KEY",
+                "openai": "OPENAI_API_KEY",
+                "google": "GOOGLE_API_KEY",
+                "groq": "GROQ_API_KEY",
+                "mistral": "MISTRAL_API_KEY",
+                "deepseek": "DEEPSEEK_API_KEY",
+                "openrouter": "OPENROUTER_API_KEY",
+            }
+            env_key = provider_key_map.get(body["provider"])
+            if not env_key:
+                return j(handler, {"error": f"Unknown provider: {body['provider']}"}, status=400)
+            cli = _cli_module()
+            removed = cli["remove_env_value"](env_key)
+            return j(handler, {"ok": True, "removed": removed})
         except Exception as e:
             return j(handler, {"error": str(e)}, status=500)
 

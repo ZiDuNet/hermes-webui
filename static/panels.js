@@ -1,10 +1,17 @@
 let _currentPanel = 'chat';
 let _skillsData = null; // cached skills list
 
+function toggleNavGroup(key) {
+  const items = document.getElementById('navGroup_' + key);
+  const arrow = items && items.previousElementSibling ? items.previousElementSibling.querySelector('.nav-group-arrow') : null;
+  if (items) items.classList.toggle('collapsed');
+  if (arrow) arrow.classList.toggle('collapsed');
+}
+
 async function switchPanel(name) {
   _currentPanel = name;
   // Update nav tabs
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
+  document.querySelectorAll('.nav-item').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
   // Update panel views
   document.querySelectorAll('.panel-view').forEach(p => p.classList.remove('active'));
   const panelEl = $('panel' + name.charAt(0).toUpperCase() + name.slice(1));
@@ -22,6 +29,9 @@ async function switchPanel(name) {
   if (name === 'gateway' && window.initGatewayPanel) window.initGatewayPanel();
   if (name === 'logs' && window.initLogsPanel) window.initLogsPanel();
   if (name === 'usage' && window.initUsagePanel) window.initUsagePanel();
+  if (name === 'channels' && window.initChannelsPanel) window.initChannelsPanel();
+  if (name === 'oauth' && window.initOauthPanel) window.initOauthPanel();
+  if (name === 'terminal' && window.initTerminalPanel) window.initTerminalPanel();
 }
 
 // ── Cron panel ──

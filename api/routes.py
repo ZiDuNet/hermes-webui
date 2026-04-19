@@ -1382,7 +1382,7 @@ def handle_post(handler, parsed) -> bool:
 
     # ── Management routes (Config/Keys/MCP) ──────────────────────────────
     from api.mgmt_routes import handle_mgmt_post
-    mgmt_result = handle_mgmt_post(handler, parsed)
+    mgmt_result = handle_mgmt_post(handler, parsed, body=body)
     if mgmt_result is not False:
         return mgmt_result
 

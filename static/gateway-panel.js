@@ -4,6 +4,21 @@
 (function() {
   'use strict';
 
+  const PLATFORM_NAMES = {
+    telegram: "Telegram", discord: "Discord", slack: "Slack",
+    whatsapp: "WhatsApp", matrix: "Matrix", feishu: "飞书",
+    dingtalk: "钉钉", wecom: "企微", mattermost: "Mattermost",
+    webhook: "Webhook", api_server: "API Server",
+  };
+
+  const STATE_COLORS = {
+    connected: "#22c55e", running: "#22c55e",
+    disconnected: "#ef4444", fatal: "#ef4444",
+    connecting: "#f59e0b", retrying: "#f59e0b",
+    draining: "#f59e0b", stopping: "#f59e0b",
+    not_connected: "var(--muted)",
+  };
+
   async function api(path, opts = {}) {
     const res = await fetch(path, {
       headers: { 'Content-Type': 'application/json' },
@@ -25,31 +40,38 @@
       const running = data.running;
       const statusColor = running ? '#22c55e' : '#ef4444';
       const statusText = running ? 'Running' : 'Stopped';
+
+      // Status card
       let html = `<div class="gw-status-card">
         <div class="gw-status-indicator" style="background:${statusColor}"></div>
         <div class="gw-status-info">
           <div class="gw-status-text" style="color:${statusColor}">${statusText}</div>
           ${data.pid ? `<div style="font-size:10px;color:var(--muted)">PID: ${data.pid}</div>` : ''}
           ${data.url ? `<div style="font-size:10px;color:var(--muted)">URL: ${data.url}</div>` : ''}
+          ${data.gateway_state ? `<div style="font-size:10px;color:var(--muted)">State: ${esc(data.gateway_state)}</div>` : ''}
         </div>
       </div>`;
 
-      // Health details
-      if (data.health) {
-        const h = data.health;
+      // Platforms list
+      const platforms = data.platforms || {};
+      if (Object.keys(platforms).length > 0) {
         html += `<div class="gw-details">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Health Check</div>`;
-        if (h.platforms) {
-          for (const [name, info] of Object.entries(h.platforms)) {
-            const connected = info.status === 'connected';
-            html += `<div class="gw-platform">
-              <span style="color:${connected ? '#22c55e' : 'var(--muted)'}">${connected ? '●' : '○'}</span>
-              <span style="font-size:11px">${name}</span>
-              ${info.username ? `<span style="font-size:10px;color:var(--muted)">${info.username}</span>` : ''}
-            </div>`;
-          }
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">平台连接状态</div>`;
+        for (const [name, info] of Object.entries(platforms)) {
+          const state = info.state || "unknown";
+          const color = STATE_COLORS[state] || "var(--muted)";
+          const label = PLATFORM_NAMES[name] || name;
+          const connected = state === "connected" || state === "running";
+          html += `<div class="gw-platform">
+            <span style="color:${color};font-size:14px">${connected ? '●' : '○'}</span>
+            <span style="font-size:11px;font-weight:500">${esc(label)}</span>
+            <span style="font-size:10px;color:${color}">${esc(state)}</span>
+            ${info.error_message ? `<span style="font-size:10px;color:#ef4444" title="${esc(info.error_message)}">!</span>` : ''}
+          </div>`;
         }
         html += `</div>`;
+      } else {
+        html += `<div style="padding:12px;font-size:11px;color:var(--muted)">未配置任何平台渠道</div>`;
       }
 
       // Action buttons
@@ -71,7 +93,6 @@
     try {
       const data = await api('/api/mgmt/gateway/' + action, { method: 'POST', body: '{}' });
       _showToast(data.output || (action + ' completed'));
-      // Refresh after delay
       setTimeout(loadStatus, 2000);
     } catch (err) {
       _showToast(action + ' failed: ' + err.message, true);
