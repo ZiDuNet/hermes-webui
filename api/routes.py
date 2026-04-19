@@ -122,6 +122,10 @@ def _allowed_public_origins() -> set[str]:
 
 def _check_csrf(handler) -> bool:
     """Reject cross-origin POST requests. Returns True if OK."""
+    # Skip CSRF check when auth is disabled (private deployment)
+    from api.auth import is_auth_enabled as _is_auth
+    if not _is_auth():
+        return True
     origin = handler.headers.get("Origin", "")
     referer = handler.headers.get("Referer", "")
     host = handler.headers.get("Host", "")
