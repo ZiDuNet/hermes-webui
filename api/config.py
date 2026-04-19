@@ -158,6 +158,17 @@ PYTHON_EXE = _discover_python(_AGENT_DIR)
 if _AGENT_DIR is not None:
     if str(_AGENT_DIR) not in sys.path:
         sys.path.append(str(_AGENT_DIR))
+    # Also inject the agent venv's site-packages so dependencies like
+    # openai, pydantic, etc. are importable by the web-ui process.
+    _agent_venv = _AGENT_DIR / "venv"
+    if not _agent_venv.exists():
+        _agent_venv = _AGENT_DIR / ".venv"
+    if _agent_venv.exists():
+        import glob as _glob
+        # site-packages can live under lib/pythonX.Y/site-packages
+        for sp in _glob.glob(str(_agent_venv / "lib" / "python*" / "site-packages")):
+            if sp not in sys.path:
+                sys.path.append(sp)
     _HERMES_FOUND = True
 else:
     _HERMES_FOUND = False
